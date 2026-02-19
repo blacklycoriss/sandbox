@@ -1,6 +1,7 @@
 package userservice
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/blacklycoriss/sandbox/internal/config"
@@ -12,12 +13,34 @@ import (
 )
 
 func main() {
-	db.InitPostgres(config.GetDBURL())
+	//Init DBs
+	errdb := db.InitPostgres(config.GetDBURL())
+	if errdb != nil {
+		log.Fatalf("Failed to initialize Postgres: %v", errdb)
+	}
 	db.InitRedis(config.GetRedisAddr())
-	messaging.InitRabbitMQ(config.GetRabbitMQURL()) // If publishing
+
+	//Init RabbitMQ
+	rmq_url := config.GetRabbitMQURL()
+
+	rmq, err := messaging.New(rmq_url)
+	if err != nil {
+		log.Fatalf("Failed to initialize RabbitMQ: %v", err)
+	}
+
+	err = rmq.Connect(rmq_url)
+	if err != nil {
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	}
+
+	//Init Handlers
 	r := mux.NewRouter()
-	r.HandleFunc("/register", user.RegisterHandler).Methods("POST")
-	r.HandleFunc("/cart/{user_id}", user.GetCartHandler).Methods("GET")
-	r.HandleFunc("/cart/add/{user_id}", user.AddToCartHandler).Methods("POST") // Note: Adjusted endpoint for param
+	r.HandleFunc("/register", user.RegisterUserHandler).Methods("POST")
+	r.HandleFunc("/users", user.GetUsersHandler).Methods("GET")
+	r.HandleFunc("/user/{user_id}", user.GetUserHandler).Methods("GET")
+	r.HandleFunc("/carts", user.GetCartsHandler).Methods("GET")
+	r.HandleFunc("/carts/{cart_id}", user.GetCartHandler).Methods("GET")
+	//r.HandleFunc("/carts/add/{user_id}", user.AddToCartHandler).Methods("POST")
+
 	http.ListenAndServe(":8001", r)
 }

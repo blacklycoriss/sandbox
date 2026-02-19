@@ -8,10 +8,10 @@ import (
 
 var Pool *pgxpool.Pool
 
-func InitPostgres(url string) *pgxpool.Pool {
-	Pool, err := pgxpool.New(context.Background(), url)
+func InitPostgres(url string) error {
+	_, err := pgxpool.New(context.Background(), url)
 	if err != nil {
-		panic("Failed to connect to Postgres: " + err.Error())
+		return err
 	}
-	return Pool
+	return nil
 }
